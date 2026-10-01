@@ -7,6 +7,7 @@ import {
 } from '@ifrc-go/icons';
 import {
     Container,
+    Description,
     ListView,
 } from '@ifrc-go/ui';
 import { isDefined } from '@togglecorp/fujs';
@@ -53,6 +54,9 @@ const KOBO_STATS_QUERY = gql`
 
 type ExternalDashboard = ExternalDashboardsQuery['externalDashboards']['results'][number];
 
+// Mirrors STATS_WINDOW (180 days) in backend/apps/kobo/stats.py
+const STATS_WINDOW_LABEL = 'Last 6 months';
+
 function formatLastUpdated(value: string | null | undefined) {
     if (!value) {
         return undefined;
@@ -93,6 +97,7 @@ function Home() {
     const [{ data: koboData }] = useKoboStatsQuery();
     const koboStats = koboData?.koboStats;
     const lastUpdated = formatLastUpdated(koboStats?.alert.source.lastFetchedAt);
+    const statsMeta = [STATS_WINDOW_LABEL, lastUpdated].filter(isDefined).join(' · ');
 
     const operationDashboards = data?.externalDashboards.results ?? [];
 
@@ -119,7 +124,6 @@ function Home() {
                 valueType="number"
                 size="lg"
                 label="Emergencies"
-                info={lastUpdated}
             />
             <KeyCard
                 icon={<HeartAddLineIcon />}
@@ -128,7 +132,6 @@ function Home() {
                 size="lg"
                 valueOptions={{ compact: true }}
                 label="People reached"
-                info={lastUpdated}
             />
             <KeyCard
                 icon={<AlertLineIcon />}
@@ -137,7 +140,6 @@ function Home() {
                 size="lg"
                 valueOptions={{ compact: true }}
                 label="Population affected"
-                info={lastUpdated}
             />
             <KeyCard
                 icon={<ShieldUserLineIcon />}
@@ -146,7 +148,6 @@ function Home() {
                 valueOptions={{ compact: true }}
                 label="People in Need"
                 size="lg"
-                info={lastUpdated}
             />
         </ListView>
     );
@@ -156,7 +157,16 @@ function Home() {
             heading="ERCS Emergency Operations Centre"
             description="Real-time operational intelligence and situational awareness for emergency response"
             info={(
-                <Container>
+                <Container
+                    headerActions={(
+                        <Description
+                            textSize="sm"
+                            withLightText
+                        >
+                            {statsMeta}
+                        </Description>
+                    )}
+                >
                     {keyFigures}
                 </Container>
             )}
