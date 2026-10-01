@@ -46,12 +46,12 @@ const ALBUM_IMAGES_QUERY = gql`
     query AlbumImages(
         $pagination: OffsetPaginationInput,
         $filters: GalleryImageFilter,
-        $order: GalleryImageOrder
+        $ordering: [GalleryImageOrder!]
     ) {
         galleryImages(
             filters: $filters
             pagination: $pagination
-            order: $order
+            ordering: $ordering
         ) {
             totalCount
             results {
@@ -67,7 +67,7 @@ const ALBUM_IMAGES_QUERY = gql`
 `;
 
 const PAGE_SIZE = 24;
-const IMAGE_ORDER = { order: Ordering.Asc };
+const IMAGE_ORDERING = [{ order: Ordering.Asc }];
 
 type AlbumImage = NonNullable<AlbumImagesQuery['galleryImages']['results']>[number];
 
@@ -105,7 +105,7 @@ function AlbumDetail() {
             filters: {
                 albumId,
             },
-            order: IMAGE_ORDER,
+            ordering: IMAGE_ORDERING,
             pagination: {
                 limit,
                 offset,
@@ -144,7 +144,7 @@ function AlbumDetail() {
             filters: {
                 albumId,
             },
-            order: IMAGE_ORDER,
+            ordering: IMAGE_ORDERING,
             pagination: {
                 limit: totalCount,
                 offset: 0,

@@ -8,9 +8,11 @@ import {
 } from '@ifrc-go/icons';
 import {
     Container,
+    Description,
     ListView,
     NavigationTabList,
 } from '@ifrc-go/ui';
+import { isDefined } from '@togglecorp/fujs';
 import { gql } from 'urql';
 
 import KeyCard from '#components/KeyCard';
@@ -54,6 +56,7 @@ const EXTERNAL_DASHBOARDS_QUERY = gql`
         }
     }
 `;
+const STATS_WINDOW_LABEL = 'Last 6 months';
 
 function formatLastUpdated(value: string | null | undefined) {
     if (!value) {
@@ -71,6 +74,7 @@ function OurWork() {
     const [{ data: koboData }] = useKoboStatsQuery();
     const koboStats = koboData?.koboStats;
     const lastUpdated = formatLastUpdated(koboStats?.alert.source.lastFetchedAt);
+    const statsMeta = [STATS_WINDOW_LABEL, lastUpdated].filter(isDefined).join(' · ');
 
     const keyFigures = (
         <ListView
@@ -84,7 +88,6 @@ function OurWork() {
                 size="lg"
                 valueOptions={{ compact: true }}
                 label="People Reached"
-                info={lastUpdated}
             />
             <KeyCard
                 icon={<AlertLineIcon />}
@@ -93,7 +96,6 @@ function OurWork() {
                 size="lg"
                 valueOptions={{ compact: true }}
                 label="Population Affected"
-                info={lastUpdated}
             />
             <KeyCard
                 icon={<ShieldUserLineIcon />}
@@ -102,7 +104,6 @@ function OurWork() {
                 size="lg"
                 valueOptions={{ compact: true }}
                 label="People in Need"
-                info={lastUpdated}
             />
         </ListView>
     );
@@ -113,7 +114,16 @@ function OurWork() {
             heading="National EOC Operations"
             description="Comprehensive operational intelligence and emergency coordination dashboards"
             info={(
-                <Container>
+                <Container
+                    headerActions={(
+                        <Description
+                            textSize="sm"
+                            withLightText
+                        >
+                            {statsMeta}
+                        </Description>
+                    )}
+                >
                     {keyFigures}
                 </Container>
             )}

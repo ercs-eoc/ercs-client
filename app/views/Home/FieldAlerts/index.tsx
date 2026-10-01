@@ -34,7 +34,7 @@ import styles from './styles.module.css';
 
 const KOBO_EMERGENCIES_QUERY = gql`
     query KoboEmergencies($pagination: OffsetPaginationInput) {
-        koboEmergencies(pagination: $pagination, order: { submissionTime: DESC }) {
+        koboEmergencies(pagination: $pagination, ordering: [{ submissionTime: DESC }]) {
             totalCount
             results {
                 id

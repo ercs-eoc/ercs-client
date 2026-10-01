@@ -104,16 +104,24 @@ const sourceOptions: mapboxgl.GeoJSONSourceRaw = {
 
 const now = new Date().toISOString();
 
-const COLOR_FIELD_ALERT = '#cc2b2b';
+const COLOR_FIELD_ALERT = '#9b0000';
+const COLOR_FIELD_ALERT_HALO = '#f2b8b8';
+
+const alertPointHaloLayerOptions: Omit<CircleLayer, 'id'> = {
+    type: 'circle',
+    paint: {
+        'circle-radius': 8,
+        'circle-color': COLOR_FIELD_ALERT_HALO,
+        'circle-opacity': 1,
+    },
+};
 
 const alertPointLayerOptions: Omit<CircleLayer, 'id'> = {
     type: 'circle',
     paint: {
-        'circle-radius': 5,
+        'circle-radius': 3.5,
         'circle-color': COLOR_FIELD_ALERT,
-        'circle-opacity': 0.9,
-        'circle-stroke-width': 1,
-        'circle-stroke-color': '#ffffff',
+        'circle-opacity': 1,
     },
 };
 
@@ -124,6 +132,27 @@ interface AlertPointProperties {
     emergencyCode: string;
     region: string;
     peopleAffected: number;
+    onsetDate: string;
+}
+
+const KOBO_HAZARD_TO_GO_DISASTER_TYPE: Record<string, string> = {
+    flood: 'Flood',
+    drought: 'Drought',
+    epidemic: 'Epidemic',
+    'population movement': 'Population Movement',
+    fire: 'Fire',
+    'land slide': 'Landslide',
+    conflict: 'Civil Unrest',
+    'wind storm': 'Other',
+    other: 'Other',
+};
+
+function getGoDisasterTypeName(hazard: string | null | undefined) {
+    if (!hazard) {
+        return undefined;
+    }
+    const key = hazard.trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+    return KOBO_HAZARD_TO_GO_DISASTER_TYPE[key];
 }
 
 function ActiveOperation() {
@@ -131,6 +160,7 @@ function ActiveOperation() {
         countryResponse: countryData,
         countryId,
         globalEnums,
+        disasterTypes,
     } = useGoContext();
     const [scaleBy, setScaleBy] = useInputState<ScaleOption['value']>('peopleTargeted');
     const [presentationMode, setPresentationMode] = useState(false);
@@ -195,6 +225,10 @@ function ActiveOperation() {
     } | undefined>();
     const [activeAlertId, setActiveAlertId] = useState<string | undefined>();
 
+    const selectedDisasterTypeName = isDefined(filter.displacement)
+        ? disasterTypes?.results.find((item) => item.id === filter.displacement)?.name
+        : undefined;
+
     const alertPointFeatureCollection = useMemo<
         GeoJSON.FeatureCollection<GeoJSON.Point, AlertPointProperties>
     >(
@@ -202,14 +236,31 @@ function ActiveOperation() {
             type: 'FeatureCollection' as const,
             features: (alertsData?.koboEmergencies.results ?? [])
                 .map((item) => {
-                    if (!isDefined(item.latitude) || !isDefined(item.longitude)) {
+                    const { latitude, longitude } = item;
+                    if (isNotDefined(latitude) || isNotDefined(longitude)) {
+                        return undefined;
+                    }
+                    const alertDate = item.startDate ?? item.submissionTime?.slice(0, 10);
+                    const hasDateFilter = isDefined(filter.startDateAfter)
+                        || isDefined(filter.startDateBefore);
+                    const isWithinDateRange = !hasDateFilter || (
+                        isDefined(alertDate)
+                        && (isNotDefined(filter.startDateAfter)
+                            || alertDate >= filter.startDateAfter)
+                        && (isNotDefined(filter.startDateBefore)
+                            || alertDate <= filter.startDateBefore)
+                    );
+                    const matchesDisasterType = isNotDefined(filter.displacement)
+                        || getGoDisasterTypeName(item.hazard) === selectedDisasterTypeName;
+
+                    if (!isWithinDateRange || !matchesDisasterType) {
                         return undefined;
                     }
                     return {
                         type: 'Feature' as const,
                         geometry: {
                             type: 'Point' as const,
-                            coordinates: [item.longitude, item.latitude],
+                            coordinates: [longitude, latitude],
                         },
                         properties: {
                             id: item.id,
@@ -218,16 +269,24 @@ function ActiveOperation() {
                             emergencyCode: item.emergencyCode ?? '',
                             region: item.region ?? '',
                             peopleAffected: item.peopleAffected ?? 0,
+                            onsetDate: item.startDate ?? '',
                         },
                     };
                 })
                 .filter(isDefined),
         }),
-        [alertsData],
+        [
+            alertsData,
+            filter.startDateAfter,
+            filter.startDateBefore,
+            filter.displacement,
+            selectedDisasterTypeName,
+        ],
     );
 
     const handleAlertClick = useCallback(
         (feature: mapboxgl.MapboxGeoJSONFeature, lngLat: mapboxgl.LngLat) => {
+            setClickedPoint(undefined);
             setClickedAlert({
                 properties: feature.properties as AlertPointProperties,
                 lngLat,
@@ -381,6 +440,7 @@ function ActiveOperation() {
         featureProperties: AdminZeroFeatureProperties,
         lngLat: mapboxgl.LngLatLike,
     ) => {
+        setClickedAlert(undefined);
         setClickedPoint({
             featureProperties,
             lngLat,
@@ -570,6 +630,10 @@ function ActiveOperation() {
                         geoJson={alertPointFeatureCollection}
                     >
                         <MapLayer
+                            layerKey="alert-point-halo"
+                            layerOptions={alertPointHaloLayerOptions}
+                        />
+                        <MapLayer
                             layerKey="alert-point-circle"
                             layerOptions={alertPointLayerOptions}
                             onClick={handleAlertClick}
@@ -590,6 +654,13 @@ function ActiveOperation() {
                                     label="Disaster type"
                                     value={clickedAlert.properties.hazard}
                                     valueType="text"
+                                    textSize="sm"
+                                />
+                                <TextOutput
+                                    label="Onset date"
+                                    value={clickedAlert.properties.onsetDate || undefined}
+                                    valueType="date"
+                                    format="MMM dd, yyyy"
                                     textSize="sm"
                                 />
                                 <TextOutput
