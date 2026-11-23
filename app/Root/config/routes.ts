@@ -79,6 +79,13 @@ const capacityAndResourcesDetails: RouteConfig = {
     visibility: 'is-anything',
 };
 
+const dashboardDetail: RouteConfig = {
+    index: true,
+    path: '/dashboards/:id',
+    load: () => import('#views/DashboardDetail'),
+    visibility: 'is-anything',
+};
+
 const ourWork: RouteConfig = {
     index: true,
     path: '/our-work',
@@ -206,6 +213,7 @@ const routes = {
     login,
     reportDetail,
     capacityAndResourcesDetails,
+    dashboardDetail,
     additionalLinks,
     manuals,
     guidelines,

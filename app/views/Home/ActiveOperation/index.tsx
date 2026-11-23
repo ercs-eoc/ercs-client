@@ -525,13 +525,13 @@ function ActiveOperation() {
                     <>
                         <DateInput
                             name="startDateAfter"
-                            label="Start After"
+                            label="Start Date"
                             onChange={setFilterField}
                             value={rawFilter.startDateAfter}
                         />
                         <DateInput
                             name="startDateBefore"
-                            label="Start Before"
+                            label="End Date"
                             onChange={setFilterField}
                             value={rawFilter.startDateBefore}
                         />

@@ -195,14 +195,17 @@ function FieldAlerts() {
             <Container
                 heading={heading}
                 withHeaderBorder
-                headerDescription="Emergency alerts reported by ERCS regional branches, sourced from Kobo. Shown on the Active Operations map above."
-                headerActions={(
-                    <ExportButton
-                        onClick={triggerExport}
-                        progress={exportProgress}
-                        pendingExport={exportPending}
-                        totalCount={count}
-                    />
+                headerDescription={(
+                    <div className={styles.headerDescription}>
+                        Emergency alerts reported by ERCS regional branches,
+                        sourced from Kobo. Shown on the Active Operations map above.
+                        <ExportButton
+                            onClick={triggerExport}
+                            progress={exportProgress}
+                            pendingExport={exportPending}
+                            totalCount={count}
+                        />
+                    </div>
                 )}
                 footerActions={(
                     <Pager

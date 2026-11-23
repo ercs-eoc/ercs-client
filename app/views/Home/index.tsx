@@ -18,12 +18,10 @@ import InfoCard from '#components/InfoCard';
 import KeyCard from '#components/KeyCard';
 import Page from '#components/Page';
 import {
-    DashboardPage,
     type ExternalDashboardsQuery,
     useExternalDashboardsQuery,
     useKoboStatsQuery,
 } from '#generated/types/graphql';
-import type { RouteKeys } from '#root/config/routes';
 import useRouting from '#root/hooks/useRouting';
 import ActiveOperation from '#views/Home/ActiveOperation';
 import FieldAlerts from '#views/Home/FieldAlerts';
@@ -69,16 +67,6 @@ function formatLastUpdated(value: string | null | undefined) {
     return `Updated ${date}`;
 }
 
-const DASHBOARD_PAGE_TO_ROUTE_KEY: Record<DashboardPage, RouteKeys> = {
-    [DashboardPage.CapacityResources]: 'capacityAndResources',
-    [DashboardPage.DisasterResponse]: 'disasterResponse',
-    [DashboardPage.EmergencyAlerts]: 'emergencyAlert',
-    [DashboardPage.EmergencyResponse]: 'emergencyResponse',
-    [DashboardPage.Home]: 'home',
-    [DashboardPage.Operations]: 'home',
-    [DashboardPage.ProjectMapping]: 'projectMapping',
-};
-
 function Home() {
     const routeTo = useRouting();
 
@@ -102,15 +90,7 @@ function Home() {
     const operationDashboards = data?.externalDashboards.results ?? [];
 
     const handleViewClick = (dashboard: ExternalDashboard) => {
-        const { page, capacityAndResourceId } = dashboard;
-
-        if (page === DashboardPage.CapacityResources && isDefined(capacityAndResourceId)) {
-            routeTo('capacityAndResourcesDetails', { id: capacityAndResourceId });
-            return;
-        }
-
-        const routeKey = DASHBOARD_PAGE_TO_ROUTE_KEY[page];
-        routeTo(routeKey);
+        routeTo('dashboardDetail', { id: dashboard.id });
     };
 
     const keyFigures = (
@@ -124,14 +104,6 @@ function Home() {
                 valueType="number"
                 size="lg"
                 label="Emergencies"
-            />
-            <KeyCard
-                icon={<HeartAddLineIcon />}
-                value={koboStats?.field.peopleReached ?? 0}
-                valueType="number"
-                size="lg"
-                valueOptions={{ compact: true }}
-                label="People reached"
             />
             <KeyCard
                 icon={<AlertLineIcon />}
@@ -148,6 +120,14 @@ function Home() {
                 valueOptions={{ compact: true }}
                 label="People in Need"
                 size="lg"
+            />
+            <KeyCard
+                icon={<HeartAddLineIcon />}
+                value={koboStats?.field.peopleReached ?? 0}
+                valueType="number"
+                size="lg"
+                valueOptions={{ compact: true }}
+                label="People reached"
             />
         </ListView>
     );
