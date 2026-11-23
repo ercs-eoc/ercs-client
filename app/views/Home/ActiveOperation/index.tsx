@@ -42,7 +42,6 @@ import type {
     LngLatBoundsLike,
 } from 'mapbox-gl';
 
-import DisasterTypeSelectInput from '#components/DisasterTypeSelectInput';
 import GlobalMap, { type AdminZeroFeatureProperties } from '#components/GlobalMap';
 import GoMapContainer from '#components/GoMapContainer';
 import Link from '#components/Link';
@@ -135,24 +134,51 @@ interface AlertPointProperties {
     onsetDate: string;
 }
 
-const KOBO_HAZARD_TO_GO_DISASTER_TYPE: Record<string, string> = {
-    flood: 'Flood',
-    drought: 'Drought',
-    epidemic: 'Epidemic',
-    'population movement': 'Population Movement',
-    fire: 'Fire',
-    'land slide': 'Landslide',
-    conflict: 'Civil Unrest',
-    'wind storm': 'Other',
-    other: 'Other',
-};
+interface DisasterTypeOption {
+    // Choice code of `context/hazard` in the ERCS Kobo Emergency Alert form
+    key: string;
+    label: string;
+    // Equivalent GO disaster type id (/api/v2/disaster_type/), used to filter GO appeals.
+    // Undefined when GO has no matching type, so no GO appeal can match.
+    goDisasterTypeId?: number;
+}
 
-function getGoDisasterTypeName(hazard: string | null | undefined) {
-    if (!hazard) {
-        return undefined;
-    }
-    const key = hazard.trim().toLowerCase().replace(/[\s_-]+/g, ' ');
-    return KOBO_HAZARD_TO_GO_DISASTER_TYPE[key];
+// NOTE: The disaster type filter lists the hazards of the ERCS Kobo Emergency
+// Alert form; GO disaster types without a Kobo counterpart are not relevant for ERCS.
+const DISASTER_TYPE_OPTIONS: DisasterTypeOption[] = [
+    { key: 'conflict', label: 'Conflict', goDisasterTypeId: 7 }, // GO: Civil Unrest
+    { key: 'drought', label: 'Drought', goDisasterTypeId: 20 },
+    { key: 'earthquake', label: 'Earthquake', goDisasterTypeId: 2 },
+    { key: 'epidemic', label: 'Epidemic', goDisasterTypeId: 1 },
+    { key: 'fire', label: 'Fire', goDisasterTypeId: 15 },
+    { key: 'flood', label: 'Flood', goDisasterTypeId: 12 },
+    { key: 'land_slide', label: 'Landslide', goDisasterTypeId: 24 },
+    { key: 'Locust', label: 'Locust', goDisasterTypeId: 62 }, // GO: Insect Infestation
+    { key: 'population-movement', label: 'Population Movement', goDisasterTypeId: 5 },
+    { key: 'Sismic', label: 'Seismic', goDisasterTypeId: 2 }, // GO: Earthquake
+    { key: 'volcano', label: 'Volcano', goDisasterTypeId: 8 }, // GO: Volcanic Eruption
+    { key: 'Wind storm', label: 'Wind Storm' },
+    { key: 'other', label: 'Other', goDisasterTypeId: 13 },
+];
+
+function disasterTypeKeySelector(option: DisasterTypeOption) {
+    return option.key;
+}
+function disasterTypeLabelSelector(option: DisasterTypeOption) {
+    return option.label;
+}
+
+// Kobo codes are inconsistently cased/separated (`Wind storm`, `land_slide`)
+function normalizeHazard(hazard: string) {
+    return hazard.trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+}
+
+const disasterTypeOptionByHazard = Object.fromEntries(
+    DISASTER_TYPE_OPTIONS.map((option) => [normalizeHazard(option.key), option]),
+);
+
+function getDisasterTypeOption(hazard: string | null | undefined) {
+    return hazard ? disasterTypeOptionByHazard[normalizeHazard(hazard)] : undefined;
 }
 
 function ActiveOperation() {
@@ -160,7 +186,6 @@ function ActiveOperation() {
         countryResponse: countryData,
         countryId,
         globalEnums,
-        disasterTypes,
     } = useGoContext();
     const [scaleBy, setScaleBy] = useInputState<ScaleOption['value']>('peopleTargeted');
     const [presentationMode, setPresentationMode] = useState(false);
@@ -178,7 +203,7 @@ function ActiveOperation() {
     } = useFilterState<{
         appeal?: AppealTypeOption['key'],
         district?: number[],
-        displacement?: number,
+        disasterType?: DisasterTypeOption['key'],
         startDateAfter?: string,
         startDateBefore?: string,
     }>({
@@ -188,9 +213,16 @@ function ActiveOperation() {
 
     const isFiltered = hasSomeDefinedValue(rawFilter);
 
+    const selectedDisasterType = isDefined(filter.disasterType)
+        ? getDisasterTypeOption(filter.disasterType)
+        : undefined;
+    // A Kobo hazard with no GO equivalent matches no GO appeal
+    const skipAppeals = isDefined(selectedDisasterType)
+        && isNotDefined(selectedDisasterType.goDisasterTypeId);
+
     const queryParams: AppealQueryParams = {
         atype: filter.appeal,
-        dtype: filter.displacement,
+        dtype: selectedDisasterType?.goDisasterTypeId,
         district: hasSomeDefinedValue(filter.district) ? filter.district : undefined,
         end_date__gt: now,
         start_date__gte: filter.startDateAfter,
@@ -207,13 +239,15 @@ function ActiveOperation() {
 
     const {
         pending: appealsPending,
-        response: appealsResponse,
+        response: rawAppealsResponse,
         error: appealsResponseError,
     } = useRequest({
         url: '/api/v2/appeal/',
         preserveResponse: true,
+        skip: skipAppeals,
         query: queryParams,
     });
+    const appealsResponse = skipAppeals ? undefined : rawAppealsResponse;
 
     // ERCS Kobo field alerts, plotted on the same map as the GO operations.
     const [{ data: alertsData }] = useKoboEmergenciesQuery({
@@ -224,10 +258,6 @@ function ActiveOperation() {
         lngLat: mapboxgl.LngLatLike,
     } | undefined>();
     const [activeAlertId, setActiveAlertId] = useState<string | undefined>();
-
-    const selectedDisasterTypeName = isDefined(filter.displacement)
-        ? disasterTypes?.results.find((item) => item.id === filter.displacement)?.name
-        : undefined;
 
     const alertPointFeatureCollection = useMemo<
         GeoJSON.FeatureCollection<GeoJSON.Point, AlertPointProperties>
@@ -250,8 +280,8 @@ function ActiveOperation() {
                         && (isNotDefined(filter.startDateBefore)
                             || alertDate <= filter.startDateBefore)
                     );
-                    const matchesDisasterType = isNotDefined(filter.displacement)
-                        || getGoDisasterTypeName(item.hazard) === selectedDisasterTypeName;
+                    const matchesDisasterType = isNotDefined(selectedDisasterType)
+                        || getDisasterTypeOption(item.hazard) === selectedDisasterType;
 
                     if (!isWithinDateRange || !matchesDisasterType) {
                         return undefined;
@@ -265,7 +295,8 @@ function ActiveOperation() {
                         properties: {
                             id: item.id,
                             title: item.title,
-                            hazard: item.hazard ?? '',
+                            hazard: getDisasterTypeOption(item.hazard)?.label
+                                ?? item.hazard ?? '',
                             emergencyCode: item.emergencyCode ?? '',
                             region: item.region ?? '',
                             peopleAffected: item.peopleAffected ?? 0,
@@ -279,8 +310,7 @@ function ActiveOperation() {
             alertsData,
             filter.startDateAfter,
             filter.startDateBefore,
-            filter.displacement,
-            selectedDisasterTypeName,
+            selectedDisasterType,
         ],
     );
 
@@ -545,12 +575,15 @@ function ActiveOperation() {
                             labelSelector={appealTypeLabelSelector}
                             options={globalEnums?.api_appeal_type}
                         />
-                        <DisasterTypeSelectInput
+                        <SelectInput
                             placeholder="All Disaster Types"
                             label="Disaster Type"
-                            name="displacement"
-                            value={rawFilter.displacement}
+                            name="disasterType"
+                            value={rawFilter.disasterType}
                             onChange={setFilterField}
+                            keySelector={disasterTypeKeySelector}
+                            labelSelector={disasterTypeLabelSelector}
+                            options={DISASTER_TYPE_OPTIONS}
                         />
                         <Button
                             name={undefined}
