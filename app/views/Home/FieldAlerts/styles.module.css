@@ -4,3 +4,10 @@
         min-width: 9rem;
     }
 }
+
+.header-description {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--go-ui-spacing-md);
+}
