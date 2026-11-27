@@ -36,7 +36,7 @@ ENV APP_GO_RISK_API_ENDPOINT=WEB_APP_SERVE_PLACEHOLDER__APP_GO_RISK_API_ENDPOINT
 RUN pnpm generate:type && WEB_APP_SERVE_ENABLED=true pnpm build
 
 # ---------------------------------------------------------------------------
-FROM ghcr.io/toggle-corp/web-app-serve:v0.1.2 AS web-app-serve
+FROM ghcr.io/toggle-corp/web-app-serve:v0.2.0 AS web-app-serve
 
 LABEL maintainer="Togglecorp Dev"
 LABEL org.opencontainers.image.source="https://github.com/ToogleCorp/ercs-client"
