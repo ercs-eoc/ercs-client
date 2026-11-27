@@ -1,0 +1,29 @@
+.date-filter {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--go-ui-spacing-sm);
+
+    .date-input {
+        font-size: var(--go-ui-font-size-sm);
+    }
+
+    .input {
+        padding-inline: var(--go-ui-spacing-2xs);
+        font-size: var(--go-ui-font-size-sm);
+    }
+}
+
+.stats-meta {
+    align-items: center;
+    line-height: 1;
+
+    /* NOTE: IconButton reads its size and padding from these variables */
+    .edit-button {
+        --font-size: var(--go-ui-font-size-md);
+        --padding: 0 var(--go-ui-spacing-4xs);
+
+        svg {
+            display: block;
+        }
+    }
+}

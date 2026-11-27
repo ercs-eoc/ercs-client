@@ -1,73 +1,25 @@
-import {
-    AlarmWarningLineIcon,
-    AlertLineIcon,
-    DashboardFillIcon,
-    HeartAddLineIcon,
-    ShieldUserLineIcon,
-} from '@ifrc-go/icons';
+import { DashboardFillIcon } from '@ifrc-go/icons';
 import {
     Container,
-    Description,
     ListView,
 } from '@ifrc-go/ui';
 import { isDefined } from '@togglecorp/fujs';
-import { gql } from 'urql';
 
 import DashboardCard from '#components/DashboardCard';
 import InfoCard from '#components/InfoCard';
-import KeyCard from '#components/KeyCard';
+import KoboKeyFigures from '#components/KoboKeyFigures';
 import Page from '#components/Page';
 import {
     DashboardPage,
     type ExternalDashboardsQuery,
     useExternalDashboardsQuery,
-    useKoboStatsQuery,
 } from '#generated/types/graphql';
 import type { RouteKeys } from '#root/config/routes';
 import useRouting from '#root/hooks/useRouting';
 import ActiveOperation from '#views/Home/ActiveOperation';
 import FieldAlerts from '#views/Home/FieldAlerts';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const KOBO_STATS_QUERY = gql`
-    query KoboStats {
-        koboStats {
-            alert {
-                totalEmergencies
-                peopleAffected
-                source {
-                    formLabel
-                    assetUid
-                    lastFetchedAt
-                    confirmedRecords
-                }
-            }
-            rapidNeeds {
-                peopleInNeed
-            }
-            field {
-                peopleReached
-            }
-        }
-    }
-`;
-
 type ExternalDashboard = ExternalDashboardsQuery['externalDashboards']['results'][number];
-
-// Mirrors STATS_WINDOW (180 days) in backend/apps/kobo/stats.py
-const STATS_WINDOW_LABEL = 'Last 6 months';
-
-function formatLastUpdated(value: string | null | undefined) {
-    if (!value) {
-        return undefined;
-    }
-    const date = new Date(value).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
-    return `Updated ${date}`;
-}
 
 const DASHBOARD_PAGE_TO_ROUTE_KEY: Record<DashboardPage, RouteKeys> = {
     [DashboardPage.CapacityResources]: 'capacityAndResources',
@@ -94,11 +46,6 @@ function Home() {
         },
     });
 
-    const [{ data: koboData }] = useKoboStatsQuery();
-    const koboStats = koboData?.koboStats;
-    const lastUpdated = formatLastUpdated(koboStats?.alert.source.lastFetchedAt);
-    const statsMeta = [STATS_WINDOW_LABEL, lastUpdated].filter(isDefined).join(' · ');
-
     const operationDashboards = data?.externalDashboards.results ?? [];
 
     const handleViewClick = (dashboard: ExternalDashboard) => {
@@ -113,63 +60,12 @@ function Home() {
         routeTo(routeKey);
     };
 
-    const keyFigures = (
-        <ListView
-            layout="grid"
-            numPreferredGridColumns={4}
-        >
-            <KeyCard
-                icon={<AlarmWarningLineIcon />}
-                value={koboStats?.alert.totalEmergencies ?? 0}
-                valueType="number"
-                size="lg"
-                label="Emergencies"
-            />
-            <KeyCard
-                icon={<HeartAddLineIcon />}
-                value={koboStats?.field.peopleReached ?? 0}
-                valueType="number"
-                size="lg"
-                valueOptions={{ compact: true }}
-                label="People reached"
-            />
-            <KeyCard
-                icon={<AlertLineIcon />}
-                value={koboStats?.alert.peopleAffected ?? 0}
-                valueType="number"
-                size="lg"
-                valueOptions={{ compact: true }}
-                label="Population affected"
-            />
-            <KeyCard
-                icon={<ShieldUserLineIcon />}
-                value={koboStats?.rapidNeeds.peopleInNeed ?? 0}
-                valueType="number"
-                valueOptions={{ compact: true }}
-                label="People in Need"
-                size="lg"
-            />
-        </ListView>
-    );
     return (
         <Page
             title="Home"
             heading="ERCS Emergency Operations Centre"
             description="Real-time operational intelligence and situational awareness for emergency response"
-            info={(
-                <Container
-                    headerActions={(
-                        <Description
-                            textSize="sm"
-                            withLightText
-                        >
-                            {statsMeta}
-                        </Description>
-                    )}
-                >
-                    {keyFigures}
-                </Container>
-            )}
+            info={<KoboKeyFigures withEmergencies />}
         >
             <ListView
                 layout="block"
